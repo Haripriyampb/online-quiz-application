@@ -1,106 +1,248 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Contract Management API</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Online Quiz Application</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 2em;
-      background-color: #f4f4f4;
-    }
-    h1 {
-      color: #333;
-    }
-    .contract-form, .contract-list {
-      background: #fff;
-      padding: 1em;
-      margin-bottom: 2em;
-      border-radius: 5px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
-    }
-    input, button {
-      padding: 0.5em;
-      margin: 0.5em 0;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    .contract-item {
-      border-bottom: 1px solid #ddd;
-      padding: 0.5em 0;
-    }
-    .contract-item:last-child {
-      border-bottom: none;
-    }
-    .delete-btn {
-      background-color: #e74c3c;
-      color: white;
-      border: none;
-      padding: 0.3em 0.6em;
-      cursor: pointer;
-      float: right;
-    }
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#0ea5a4;--muted:#94a3b8;--correct:#16a34a;--wrong:#dc2626}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071129 0%,#0b1220 100%);color:#e6eef6}
+    .wrap{max-width:920px;margin:32px auto;padding:24px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    h1{margin:0 0 8px;font-size:20px}
+    .meta{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+    .chip{background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:999px;font-size:13px;color:var(--muted)}
+    .q-area{display:flex;gap:20px;align-items:flex-start}
+    .q-left{flex:1}
+    .progress{height:10px;background:rgba(255,255,255,0.04);border-radius:999px;overflow:hidden}
+    .progress > span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#60a5fa);width:0%}
+    .question{font-size:18px;margin:12px 0}
+    .options{display:grid;grid-template-columns:1fr;gap:10px}
+    button.opt{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);padding:12px 14px;border-radius:10px;text-align:left;cursor:pointer;font-size:15px}
+    button.opt:hover{transform:translateY(-2px)}
+    button.opt.correct{border-color:rgba(22,163,74,0.4);box-shadow:0 6px 18px rgba(16,185,129,0.06);background:linear-gradient(90deg,rgba(16,185,129,0.08),rgba(34,197,94,0.03))}
+    button.opt.wrong{border-color:rgba(220,38,38,0.35);background:linear-gradient(90deg,rgba(220,38,38,0.06),rgba(239,68,68,0.02))}
+    .controls{display:flex;gap:10px;align-items:center;margin-top:16px}
+    .btn{background:var(--accent);border:none;color:#012; padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .small{font-size:13px;color:var(--muted)}
+    .rightcol{width:220px}
+    .score{font-size:28px;font-weight:700;text-align:center}
+    .footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+    .timer{font-weight:700}
+    @media (max-width:760px){.q-area{flex-direction:column}.rightcol{width:100%}}
   </style>
 </head>
 <body>
-  <h1>Contract Management</h1>
+  <div class="wrap">
+    <div class="card" id="app">
+      <h1>Interactive Quiz — Single File</h1>
+      <div class="meta">
+        <div class="chip">Questions: <span id="total">0</span></div>
+        <div class="chip">Time / question: <span id="timePer">15</span>s</div>
+        <div style="margin-left:auto" class="small">Progress: <span id="qIndex">0</span>/<span id="total2">0</span></div>
+      </div>
 
-  <div class="contract-form">
-    <h2>Create Contract</h2>
-    <input type="text" id="contractTitle" placeholder="Contract Title" />
-    <input type="text" id="contractClient" placeholder="Client Name" />
-    <button onclick="createContract()">Add Contract</button>
-  </div>
+      <div class="q-area">
+        <div class="q-left">
+          <div class="progress" aria-hidden="true"><span id="progBar" style="width:0%"></span></div>
+          <div class="question" id="question">Loading...</div>
+          <div class="options" id="options"></div>
 
-  <div class="contract-list">
-    <h2>Contracts</h2>
-    <div id="contractsContainer"></div>
+          <div class="controls">
+            <button class="btn" id="nextBtn" disabled>Next</button>
+            <button class="btn secondary" id="restartBtn">Restart</button>
+            <div class="small" style="margin-left:auto">Score: <strong id="score">0</strong></div>
+          </div>
+        </div>
+
+        <aside class="rightcol">
+          <div class="card" style="padding:14px;background:transparent;box-shadow:none">
+            <div class="small">Timer</div>
+            <div class="timer" id="timer">--</div>
+            <hr style="opacity:0.04;margin:12px 0">
+            <div class="small">Summary</div>
+            <div style="margin-top:8px">
+              <div class="small">Correct: <strong id="correctCount">0</strong></div>
+              <div class="small">Wrong: <strong id="wrongCount">0</strong></div>
+              <div class="small">Unanswered: <strong id="unansweredCount">0</strong></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="footer">Tip: this runs entirely in your browser — copy the file and open it anywhere. Want more features? Ask to add question importing, categories, or a leaderboard.</div>
+    </div>
   </div>
 
   <script>
-    let contracts = [];
+    // --- SAMPLE QUESTIONS ---
+    const QUESTIONS = [
+      {q: "Which HTML tag is used to define an unordered list?", choices:["<ol>","<ul>","<li>","<list>"], a:1},
+      {q: "What does CSS stand for?", choices:["Computer Style Sheets","Cascading Style Sheets","Creative Style Syntax","Colorful Style Sheets"], a:1},
+      {q: "Which JavaScript method converts JSON text to an object?", choices:["JSON.parse()","JSON.stringify()","JSON.toObject()","JSON.convert()"], a:0},
+      {q: "Which attribute is used to specify inline styles in HTML?", choices:["class","id","style","ref"], a:2},
+      {q: "Which symbol is used for comments in JavaScript?", choices:["<!-- -->","/* */","//","##"], a:2}
+    ];
 
-    function renderContracts() {
-      const container = document.getElementById('contractsContainer');
-      container.innerHTML = '';
-      contracts.forEach((contract, index) => {
-        const div = document.createElement('div');
-        div.className = 'contract-item';
-        div.innerHTML = `
-          <strong>${contract.title}</strong> - ${contract.client}
-          <button class="delete-btn" onclick="deleteContract(${index})">Delete</button>
-        `;
-        container.appendChild(div);
-      });
+    // --- Config ---
+    const TIME_PER_Q = 15; // seconds per question
+
+    // --- State ---
+    let idx = 0;
+    let score = 0;
+    let correctCount = 0, wrongCount = 0, unansweredCount = 0;
+    let timer = null, timeLeft = TIME_PER_Q;
+
+    // --- Elements ---
+    const el = id => document.getElementById(id);
+    const questionEl = el('question');
+    const optionsEl = el('options');
+    const nextBtn = el('nextBtn');
+    const restartBtn = el('restartBtn');
+    const scoreEl = el('score');
+    const timerEl = el('timer');
+    const totalEl = el('total');
+    const timePerEl = el('timePer');
+    const qIndexEl = el('qIndex');
+    const total2El = el('total2');
+    const progBar = el('progBar');
+    const correctCountEl = el('correctCount');
+    const wrongCountEl = el('wrongCount');
+    const unansweredCountEl = el('unansweredCount');
+
+    // --- Init ---
+    function init(){
+      // deep copy questions to allow future features like shuffle
+      window.questions = QUESTIONS.map(q=>({...q, answered:false}));
+      totalEl.textContent = window.questions.length;
+      total2El.textContent = window.questions.length;
+      timePerEl.textContent = TIME_PER_Q;
+      resetStats();
+      renderQuestion();
     }
 
-    function createContract() {
-      const title = document.getElementById('contractTitle').value;
-      const client = document.getElementById('contractClient').value;
-      if (title && client) {
-        contracts.push({ title, client });
-        renderContracts();
-        document.getElementById('contractTitle').value = '';
-        document.getElementById('contractClient').value = '';
+    function resetStats(){
+      idx = 0; score = 0; correctCount = 0; wrongCount = 0; unansweredCount = 0;
+      scoreEl.textContent = score;
+      correctCountEl.textContent = correctCount; wrongCountEl.textContent = wrongCount; unansweredCountEl.textContent = unansweredCount;
+    }
+
+    function renderQuestion(){
+      const q = window.questions[idx];
+      qIndexEl.textContent = idx+1;
+      questionEl.innerHTML = escapeHtml(q.q);
+      optionsEl.innerHTML = '';
+      progBar.style.width = ((idx)/window.questions.length*100)+'%';
+
+      q.choices = q.choices || q.choices; // safety
+      q.choices.forEach((choice,i)=>{
+        const btn = document.createElement('button');
+        btn.className = 'opt';
+        btn.innerHTML = escapeHtml(choice);
+        btn.dataset.index = i;
+        btn.onclick = () => selectAnswer(i);
+        optionsEl.appendChild(btn);
+      });
+
+      nextBtn.disabled = true;
+      startTimer();
+    }
+
+    function selectAnswer(choiceIndex){
+      stopTimer();
+      const q = window.questions[idx];
+      q.answered = true;
+      // mark all options disabled
+      Array.from(optionsEl.children).forEach(b=>b.disabled=true);
+
+      const correctIndex = q.a;
+      if(choiceIndex === correctIndex){
+        score += 1;
+        correctCount += 1;
+        optionsEl.children[choiceIndex].classList.add('correct');
       } else {
-        alert('Please fill in both fields.');
+        wrongCount += 1;
+        optionsEl.children[choiceIndex].classList.add('wrong');
+        if(optionsEl.children[correctIndex]) optionsEl.children[correctIndex].classList.add('correct');
+      }
+
+      updateStats();
+      nextBtn.disabled = false;
+    }
+
+    function nextQuestion(){
+      idx += 1;
+      if(idx >= window.questions.length){
+        showResults();
+      } else {
+        renderQuestion();
       }
     }
 
-    function deleteContract(index) {
-      contracts.splice(index, 1);
-      renderContracts();
+    function showResults(){
+      progBar.style.width = '100%';
+      optionsEl.innerHTML = '';
+      questionEl.textContent = 'Quiz finished!';
+      stopTimer();
+      unansweredCount = window.questions.length - (correctCount + wrongCount);
+      updateStats();
+
+      // summary card
+      const percent = Math.round((score/window.questions.length)*100);
+      optionsEl.innerHTML = '<div style="padding:12px;background:rgba(255,255,255,0.02);border-radius:8px">'
+        +`<div class="score">${score} / ${window.questions.length}</div>`
+        +`<div style="text-align:center;margin-top:6px" class="small">Score: ${percent}%</div>`
+        +`<div style="margin-top:10px;text-align:center"><button class="btn" id="retake">Retake Quiz</button></div>`
+        +'</div>';
+
+      const retakeBtn = document.getElementById('retake');
+      retakeBtn.onclick = () => { init(); };
     }
 
-    // Simulate initial fetch
-    window.onload = () => {
-      contracts = [
-        { title: 'Website Development', client: 'Acme Corp' },
-        { title: 'Mobile App Design', client: 'Globex Inc' }
-      ];
-      renderContracts();
-    };
+    function updateStats(){
+      scoreEl.textContent = score;
+      correctCountEl.textContent = correctCount;
+      wrongCountEl.textContent = wrongCount;
+      unansweredCountEl.textContent = Math.max(0, window.questions.length - (correctCount + wrongCount));
+      progBar.style.width = ((idx)/window.questions.length*100)+'%';
+    }
+
+    // --- Timer ---
+    function startTimer(){
+      timeLeft = TIME_PER_Q;
+      timerEl.textContent = `${timeLeft}s`;
+      stopTimer();
+      timer = setInterval(()=>{
+        timeLeft -= 1;
+        timerEl.textContent = `${timeLeft}s`;
+        if(timeLeft <= 0){
+          // mark unanswered and move on
+          stopTimer();
+          unansweredCount += 1;
+          // show correct answer
+          const q = window.questions[idx];
+          Array.from(optionsEl.children).forEach((b,i)=>{
+            b.disabled = true;
+            if(i === q.a) b.classList.add('correct');
+          });
+          updateStats();
+          nextBtn.disabled = false;
+        }
+      }, 1000);
+    }
+    function stopTimer(){ if(timer){clearInterval(timer);timer=null;} }
+
+    // --- Utilities ---
+    function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+    // --- Events ---
+    nextBtn.addEventListener('click', ()=>{ nextQuestion(); });
+    restartBtn.addEventListener('click', ()=>{ if(confirm('Restart the quiz?')) init(); });
+
+    // start
+    init();
   </script>
 </body>
 </html>
